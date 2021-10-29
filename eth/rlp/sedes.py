@@ -14,3 +14,4 @@ chain_gaps = rlp.sedes.List((
     rlp.sedes.CountableList(rlp.sedes.List((uint32, uint32))),
     uint32,
 ))
+block_access_list = rlp.sedes.List([address])
