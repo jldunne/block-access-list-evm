@@ -692,8 +692,28 @@ class MiningChain(Chain, MiningChainAPI):
 
         block_persist_result = self.persist_block(imported_block)
         block_import_result = BlockImportResult(*block_persist_result, block_result.meta_witness)
+        block_access_list = []
 
+        if hasattr(block_import_result.imported_block.header, 'access_list'):
+            for tx in block_result.block.transactions:
+                temp = list(tx.access_list)
+                slots = tx.access_list[0][1]
+                temp[0] = list(temp[0])
+                temp[0].append([tx.hash])
+                temp[0][2].append(slots)
+                block_access_list.append(tuple(temp))
+
+        block_access_list = tuple(block_access_list)
         self.header = self.create_header_from_parent(imported_block.header)
+        result = None
+        if hasattr(block_import_result.imported_block.header, 'access_list'):
+            header = block_import_result.imported_block.header.copy(access_list=block_access_list)
+            result = block_import_result.imported_block.copy(header=header)
+        if result is not None:
+            # Can't figure out how to add the imported block back to the result at this stage
+            # so returning special case here
+            return result, receipts, computations
+
         return (block_import_result, receipts, computations)
 
     def mine_block(self, *args: Any, **kwargs: Any) -> BlockAPI:

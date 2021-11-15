@@ -40,6 +40,7 @@ from eth.constants import (
     GENESIS_NONCE,
     GENESIS_PARENT_HASH,
     BLANK_ROOT_HASH,
+    ZERO_ACCESS_LIST
 )
 from eth.rlp.headers import (
     BlockHeader,
@@ -49,6 +50,7 @@ from eth.rlp.sedes import (
     hash32,
     trie_root,
     uint256,
+    block_access_list,
 )
 from eth.vm.forks.berlin.blocks import (
     BerlinBlock,
@@ -76,6 +78,7 @@ UNMINED_LONDON_HEADER_FIELDS = [
     ('timestamp', big_endian_int),
     ('extra_data', binary),
     ('base_fee_per_gas', big_endian_int),
+    ('access_list', block_access_list),
 ]
 
 
@@ -105,7 +108,8 @@ class LondonBlockHeader(rlp.Serializable, BlockHeaderAPI):
                  extra_data: bytes = b'',
                  mix_hash: Hash32 = ZERO_HASH32,
                  nonce: bytes = GENESIS_NONCE,
-                 base_fee_per_gas: int = 0) -> None:
+                 base_fee_per_gas: int = 0,
+                 access_list: List = ZERO_ACCESS_LIST) -> None:
         if timestamp is None:
             if parent_hash == ZERO_HASH32:
                 timestamp = new_timestamp_from_parent(None)
@@ -129,6 +133,7 @@ class LondonBlockHeader(rlp.Serializable, BlockHeaderAPI):
             mix_hash=mix_hash,
             nonce=nonce,
             base_fee_per_gas=base_fee_per_gas,
+            access_list=access_list
         )
 
     def __str__(self) -> str:
@@ -174,7 +179,7 @@ class LondonBackwardsHeader(BlockHeaderSedesAPI):
     @classmethod
     def deserialize(cls, encoded: List[bytes]) -> BlockHeaderAPI:
         num_fields = len(encoded)
-        if num_fields == 16:
+        if num_fields == 17:
             return LondonBlockHeader.deserialize(encoded)
         elif num_fields == 15:
             return BlockHeader.deserialize(encoded)
