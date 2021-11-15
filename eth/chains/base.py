@@ -696,7 +696,12 @@ class MiningChain(Chain, MiningChainAPI):
 
         if hasattr(block_import_result.imported_block.header, 'access_list'):
             for tx in block_result.block.transactions:
-                block_access_list.append(tx.access_list)
+                temp = list(tx.access_list)
+                slots = tx.access_list[0][1]
+                temp[0] = list(temp[0])
+                temp[0].append([tx.hash])
+                temp[0][2].append(slots)
+                block_access_list.append(tuple(temp))
 
         block_access_list = tuple(block_access_list)
         self.header = self.create_header_from_parent(imported_block.header)

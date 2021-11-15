@@ -166,11 +166,23 @@ def test_access_list_present_in_block_header(london_plus_miner, funded_address, 
         for idx, nonce in enumerate(range(2))
     ]
 
+    test_access_lists = [
+        [[b'\xf0' * 20, [int.from_bytes(b'\1' * 32, 'big'), int.from_bytes(b'\2' * 32, 'big')], [b',\x1aI\xbc\xd2\xd2\x17\xc7\xf0\x91\xa5\x90\x81\x1c\xf3\x08^\xec\xf6$3\xa6\x19P\xd7\xd9|1\x8d\xe8\x8f\x07', [int.from_bytes(b'\1' * 32, 'big'), int.from_bytes(b'\2' * 32, 'big')]]]],
+        [[b'\xf1' * 20, [int.from_bytes(b'\2' * 32, 'big'), int.from_bytes(b'\3' * 32, 'big')], [b',\xe8(0\x11\xf2j\x82\xe6a6*8\xb9E\xad\xc3\x94H\x01\xaf\xa6\xdd\x17]\xf7\x190v\x99\x074\x15', [int.from_bytes(b'\2' * 32, 'big'), int.from_bytes(b'\3' * 32, 'big')]]]]
+        ]
+
     mined_header, _, _ = chain.mine_all(txns, gas_limit=FOUR_TXN_GAS_LIMIT)
     assert hasattr(mined_header.header, 'access_list')
+    # Lengths are as expected
     assert len(mined_header.header.access_list) == len(test_access_lists)
+    # Addresses match
     assert mined_header.header.access_list[0][0][0] == test_access_lists[0][0][0]
+    # Per-address storage slots match
     assert mined_header.header.access_list[0][0][1] == tuple(test_access_lists[0][0][1])
+    # Transaction ids match
+    assert mined_header.header.access_list[0][0][2][0] == test_access_lists[0][0][2][0]
+    # Per tx-id storage slots match
+    assert mined_header.header.access_list[0][0][2][1] == tuple(test_access_lists[0][0][2][1])
 
 
 @pytest.mark.parametrize(
