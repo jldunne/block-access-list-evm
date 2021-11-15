@@ -1,19 +1,18 @@
 import pytest
 from eth_typing import Address
-
 from eth_utils import decode_hex
 
 from eth import constants
-from eth.consensus.noproof import NoProofConsensus
 from eth.chains.base import MiningChain
 from eth.chains.mainnet import (
     MAINNET_VMS,
 )
+from eth.consensus.noproof import NoProofConsensus
 from eth.exceptions import InvalidInstruction
-from eth.vm.forks import BerlinVM
 from eth.tools.factories.transaction import (
-    new_dynamic_fee_transaction, new_transaction,
+    new_dynamic_fee_transaction, new_transaction, new_access_list_transaction,
 )
+from eth.vm.forks import BerlinVM
 
 FOUR_TXN_GAS_LIMIT = 21000 * 4
 
@@ -104,12 +103,12 @@ def pre_london_miner(request, base_db, genesis_state):
 @pytest.mark.parametrize(
     'num_txns, expected_base_fee',
     (
-        (0, 875000000),
-        (1, 937500000),
-        # base fee should stay stable at 1 gwei when block is exactly half full
-        (2, 1000000000),
-        (3, 1062500000),
-        (4, 1125000000),
+            (0, 875000000),
+            (1, 937500000),
+            # base fee should stay stable at 1 gwei when block is exactly half full
+            (2, 1000000000),
+            (3, 1062500000),
+            (4, 1125000000),
     ),
 )
 def test_base_fee_evolution(
@@ -143,12 +142,43 @@ def test_base_fee_evolution(
     assert mined_header.base_fee_per_gas == expected_base_fee
 
 
+def test_access_list_present_in_block_header(london_plus_miner, funded_address, funded_address_private_key,
+                                             typed_txn_fixture):
+    chain = london_plus_miner
+    assert chain.header.gas_limit == FOUR_TXN_GAS_LIMIT
+
+    vm = chain.get_vm()
+    test_access_lists = [
+        [[b'\xf0' * 20, [int.from_bytes(b'\1' * 32, 'big'), int.from_bytes(b'\2' * 32, 'big')]]],
+        [[b'\xf1' * 20, [int.from_bytes(b'\2' * 32, 'big'), int.from_bytes(b'\3' * 32, 'big')]]]
+        ]
+
+    txns = [
+        new_access_list_transaction(
+            vm,
+            funded_address,
+            b'\x00' * 20,
+            private_key=funded_address_private_key,
+            gas=30000,
+            nonce=nonce,
+            access_list=test_access_lists[idx]
+        )
+        for idx, nonce in enumerate(range(2))
+    ]
+
+    mined_header, _, _ = chain.mine_all(txns, gas_limit=FOUR_TXN_GAS_LIMIT)
+    assert hasattr(mined_header.header, 'access_list')
+    assert len(mined_header.header.access_list) == len(test_access_lists)
+    assert mined_header.header.access_list[0][0][0] == test_access_lists[0][0][0]
+    assert mined_header.header.access_list[0][0][1] == tuple(test_access_lists[0][0][1])
+
+
 @pytest.mark.parametrize(
     "code, data",
     EIP_3541_CREATE_AND_CREATE2_REVERT_TEST_CASES
 )
 def test_revert_on_reserved_0xEF_byte_for_CREATE_and_CREATE2_post_london(
-    london_plus_miner, funded_address, code, data,
+        london_plus_miner, funded_address, code, data,
 ):
     chain = london_plus_miner
     vm = chain.get_vm()
@@ -189,11 +219,11 @@ def test_revert_on_reserved_0xEF_byte_for_CREATE_and_CREATE2_post_london(
 @pytest.mark.parametrize(
     "data",
     (
-        # negative test cases from https://eips.ethereum.org/EIPS/eip-3541#test-cases
-        decode_hex("0x60ef60005360016000f3"),
-        decode_hex("0x60ef60005360026000f3"),
-        decode_hex("0x60ef60005360036000f3"),
-        decode_hex("0x60ef60005360206000f3"),
+            # negative test cases from https://eips.ethereum.org/EIPS/eip-3541#test-cases
+            decode_hex("0x60ef60005360016000f3"),
+            decode_hex("0x60ef60005360026000f3"),
+            decode_hex("0x60ef60005360036000f3"),
+            decode_hex("0x60ef60005360206000f3"),
     )
 )
 def test_state_revert_on_reserved_0xEF_byte_for_create_transaction_post_london(
@@ -236,8 +266,8 @@ def test_state_revert_on_reserved_0xEF_byte_for_create_transaction_post_london(
     assert successful_create_computation_state.get_nonce(funded_address) == 1
     assert gas_used == 53354
     fees_consumed = (
-        (mined_txn.max_priority_fee_per_gas * gas_used)
-        + (initial_block_header.base_fee_per_gas * gas_used)
+            (mined_txn.max_priority_fee_per_gas * gas_used)
+            + (initial_block_header.base_fee_per_gas * gas_used)
     )
     # successful txn consumes gas and fees:
     assert new_balance == initial_balance - fees_consumed
@@ -276,7 +306,7 @@ def test_state_revert_on_reserved_0xEF_byte_for_create_transaction_post_london(
     EIP_3541_CREATE_AND_CREATE2_REVERT_TEST_CASES
 )
 def test_state_does_not_revert_on_reserved_0xEF_byte_for_CREATE_and_CREATE2_pre_london(
-    pre_london_miner, funded_address, code, data,
+        pre_london_miner, funded_address, code, data,
 ):
     chain = pre_london_miner
     vm = chain.get_vm()
@@ -308,11 +338,11 @@ def test_state_does_not_revert_on_reserved_0xEF_byte_for_CREATE_and_CREATE2_pre_
 @pytest.mark.parametrize(
     "data",
     (
-        # negative test cases from https://eips.ethereum.org/EIPS/eip-3541#test-cases
-        decode_hex("0x60ef60005360016000f3"),
-        decode_hex("0x60ef60005360026000f3"),
-        decode_hex("0x60ef60005360036000f3"),
-        decode_hex("0x60ef60005360206000f3"),
+            # negative test cases from https://eips.ethereum.org/EIPS/eip-3541#test-cases
+            decode_hex("0x60ef60005360016000f3"),
+            decode_hex("0x60ef60005360026000f3"),
+            decode_hex("0x60ef60005360036000f3"),
+            decode_hex("0x60ef60005360206000f3"),
     )
 )
 def test_state_does_not_revert_on_reserved_0xEF_byte_for_create_transaction_pre_london(
